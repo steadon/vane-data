@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { ArrowUpCircle, ArrowDownCircle, Flame } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ArrowUpCircle, ArrowDownCircle, Flame, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface LimitStock {
   symbol: string
@@ -17,15 +18,21 @@ interface LimitStock {
 }
 
 interface LimitPoolData {
-  pool_type: string
-  count: number
+  type: string
   date: string
+  page: number
+  page_size: number
+  total: number
+  pages: number
+  source: string
   stocks: LimitStock[]
 }
 
 interface LimitPoolProps {
   onStockClick?: (symbol: string) => void
 }
+
+const PAGE_SIZE = 10
 
 function formatAmount(amt: number): string {
   if (amt >= 1e8) return (amt / 1e8).toFixed(2) + '亿'
@@ -35,10 +42,9 @@ function formatAmount(amt: number): string {
 
 function StockRow({ stock, onStockClick }: { stock: LimitStock; onStockClick?: (symbol: string) => void }) {
   const isUp = stock.change_percent > 0
-
   return (
     <div
-      className="flex items-center gap-3 px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-150 cursor-pointer group active:scale-[0.98]"
+      className="flex items-center gap-3 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-150 cursor-pointer group active:scale-[0.98]"
       onClick={() => onStockClick?.(stock.symbol)}
     >
       <div className="flex-1 min-w-0">
@@ -71,38 +77,122 @@ function StockRow({ stock, onStockClick }: { stock: LimitStock; onStockClick?: (
 function PoolSkeleton() {
   return (
     <div className="space-y-2 p-1">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <Skeleton key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+      {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+        <Skeleton key={i} className="h-11 bg-gray-200 dark:bg-gray-700 rounded-lg" />
       ))}
     </div>
   )
 }
 
+function Pager({
+  page, pages, loading,
+  onPrev, onNext,
+}: {
+  page: number; pages: number; loading: boolean
+  onPrev: () => void; onNext: () => void
+}) {
+  if (pages <= 1) return null
+  return (
+    <div className="flex items-center justify-between pt-1 px-1 border-t border-gray-100 dark:border-gray-700">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 px-2 text-xs text-gray-500 dark:text-gray-400 disabled:opacity-30"
+        disabled={page <= 1 || loading}
+        onClick={onPrev}
+      >
+        <ChevronLeft className="size-3 mr-0.5" />上页
+      </Button>
+      <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
+        {page} / {pages}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 px-2 text-xs text-gray-500 dark:text-gray-400 disabled:opacity-30"
+        disabled={page >= pages || loading}
+        onClick={onNext}
+      >
+        下页<ChevronRight className="size-3 ml-0.5" />
+      </Button>
+    </div>
+  )
+}
+
+function PoolTab({
+  poolType, page, data, loading, onStockClick,
+  onPrev, onNext,
+}: {
+  poolType: string
+  page: number
+  data: LimitPoolData | null
+  loading: boolean
+  onStockClick?: (symbol: string) => void
+  onPrev: () => void
+  onNext: () => void
+}) {
+  return (
+    <div className="space-y-1">
+      {/* Fixed-height scroll area — card size never changes with content */}
+      <div className="h-[300px] overflow-y-auto custom-scrollbar space-y-0.5">
+        {loading ? (
+          <PoolSkeleton />
+        ) : data?.stocks && data.stocks.length > 0 ? (
+          data.stocks.map((stock) => (
+            <StockRow key={stock.symbol} stock={stock} onStockClick={onStockClick} />
+          ))
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-sm">
+            {poolType === 'limit_up' ? '暂无涨停股票' : '暂无跌停股票'}
+          </div>
+        )}
+      </div>
+      <Pager
+        page={page}
+        pages={data?.pages ?? 1}
+        loading={loading}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+    </div>
+  )
+}
+
 export default function LimitPool({ onStockClick }: LimitPoolProps) {
-  const [limitUp, setLimitUp] = useState<LimitPoolData | null>(null)
-  const [limitDown, setLimitDown] = useState<LimitPoolData | null>(null)
+  const [upData, setUpData] = useState<LimitPoolData | null>(null)
+  const [downData, setDownData] = useState<LimitPoolData | null>(null)
   const [loadingUp, setLoadingUp] = useState(true)
   const [loadingDown, setLoadingDown] = useState(true)
+  const [upPage, setUpPage] = useState(1)
+  const [downPage, setDownPage] = useState(1)
 
-  const fetchPool = useCallback(async (type: string, setter: (d: LimitPoolData) => void, setLoad: (l: boolean) => void) => {
+  const fetchPool = useCallback(async (
+    type: string,
+    page: number,
+    setter: (d: LimitPoolData) => void,
+    setLoad: (l: boolean) => void,
+  ) => {
     try {
       setLoad(true)
-      const res = await fetch(`/api/finance/limit-pool?type=${type}`)
+      const res = await fetch(`/api/finance/limit-pool?type=${type}&page=${page}&page_size=${PAGE_SIZE}`)
       const json = await res.json()
       if (json.code === 200 && json.data) {
         setter(json.data)
       }
     } catch {
-      // Silently fail
+      // silent fail — stale data stays visible
     } finally {
       setLoad(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchPool('limit_up', setLimitUp, setLoadingUp)
-    fetchPool('limit_down', setLimitDown, setLoadingDown)
-  }, [fetchPool])
+    fetchPool('limit_up', upPage, setUpData, setLoadingUp)
+  }, [upPage, fetchPool])
+
+  useEffect(() => {
+    fetchPool('limit_down', downPage, setDownData, setLoadingDown)
+  }, [downPage, fetchPool])
 
   return (
     <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all duration-150 hover:shadow-md">
@@ -113,7 +203,7 @@ export default function LimitPool({ onStockClick }: LimitPoolProps) {
           涨跌停股票池
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-2 pb-1.5 pt-0">
+      <CardContent className="px-2 pb-2 pt-0">
         <Tabs defaultValue="limit_up" className="w-full">
           <TabsList className="w-full bg-gray-100 dark:bg-gray-700 h-7 mb-1.5">
             <TabsTrigger
@@ -121,45 +211,39 @@ export default function LimitPool({ onStockClick }: LimitPoolProps) {
               className="text-xs data-[state=active]:bg-red-500/15 data-[state=active]:text-red-400 flex-1"
             >
               <ArrowUpCircle className="size-3 mr-1" />
-              涨停 {limitUp ? `(${limitUp.count})` : ''}
+              涨停{upData ? ` (${upData.total})` : ''}
             </TabsTrigger>
             <TabsTrigger
               value="limit_down"
               className="text-xs data-[state=active]:bg-green-500/15 data-[state=active]:text-green-400 flex-1"
             >
               <ArrowDownCircle className="size-3 mr-1" />
-              跌停 {limitDown ? `(${limitDown.count})` : ''}
+              跌停{downData ? ` (${downData.total})` : ''}
             </TabsTrigger>
           </TabsList>
+
           <TabsContent value="limit_up" className="mt-0">
-            <div className="max-h-[180px] overflow-y-auto custom-scrollbar">
-              <div className="space-y-0.5">
-                {loadingUp ? (
-                  <PoolSkeleton />
-                ) : limitUp?.stocks && limitUp.stocks.length > 0 ? (
-                  limitUp.stocks.map((stock) => (
-                    <StockRow key={stock.symbol} stock={stock} onStockClick={onStockClick} />
-                  ))
-                ) : (
-                  <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-8">暂无涨停股票</div>
-                )}
-              </div>
-            </div>
+            <PoolTab
+              poolType="limit_up"
+              page={upPage}
+              data={upData}
+              loading={loadingUp}
+              onStockClick={onStockClick}
+              onPrev={() => setUpPage((p) => Math.max(1, p - 1))}
+              onNext={() => setUpPage((p) => p + 1)}
+            />
           </TabsContent>
+
           <TabsContent value="limit_down" className="mt-0">
-            <div className="max-h-[180px] overflow-y-auto custom-scrollbar">
-              <div className="space-y-0.5">
-                {loadingDown ? (
-                  <PoolSkeleton />
-                ) : limitDown?.stocks && limitDown.stocks.length > 0 ? (
-                  limitDown.stocks.map((stock) => (
-                    <StockRow key={stock.symbol} stock={stock} onStockClick={onStockClick} />
-                  ))
-                ) : (
-                  <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-8">暂无跌停股票</div>
-                )}
-              </div>
-            </div>
+            <PoolTab
+              poolType="limit_down"
+              page={downPage}
+              data={downData}
+              loading={loadingDown}
+              onStockClick={onStockClick}
+              onPrev={() => setDownPage((p) => Math.max(1, p - 1))}
+              onNext={() => setDownPage((p) => p + 1)}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

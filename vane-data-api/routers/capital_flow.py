@@ -1,4 +1,9 @@
-"""Capital flow data (main force / retail) from EastMoney."""
+"""Capital flow data (main force / retail) from EastMoney.
+
+Caching:
+  Cache key → "capital_flow:{symbol}:{days}"
+  TTL       → 1 min during trading, 30 min outside.
+"""
 
 import json
 import logging
@@ -8,6 +13,7 @@ from fastapi import APIRouter, Query
 
 from config import EASTMONEY_CAPITAL_FLOW_URL
 from routers.kline import parse_symbol
+from utils.cache import cache, ttl_for
 from utils.http_client import safe_fetch
 
 logger = logging.getLogger(__name__)
@@ -22,6 +28,11 @@ async def get_capital_flow(
     """Get capital flow data."""
     if not symbol:
         return {"code": 400, "msg": "Missing required parameter: symbol", "data": None}
+
+    cache_key = f"capital_flow:{symbol}:{days}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return {"code": 200, "msg": "success", "data": cached}
 
     try:
         market, code = parse_symbol(symbol)
@@ -102,17 +113,15 @@ async def get_capital_flow(
 
         total_main_net = sum(f["main_net"] for f in flows)
 
-        return {
-            "code": 200,
-            "msg": "success",
-            "data": {
-                "symbol": symbol,
-                "name": name,
-                "total_main_net": round(total_main_net / 100) / 100,
-                "days": len(flows),
-                "flows": flows,
-            },
+        result = {
+            "symbol": symbol,
+            "name": name,
+            "total_main_net": round(total_main_net / 100) / 100,
+            "days": len(flows),
+            "flows": flows,
         }
+        cache.set(cache_key, result, ttl_for("capital_flow"))
+        return {"code": 200, "msg": "success", "data": result}
     except Exception as err:
         logger.error("[capital-flow] Unexpected error: %s", str(err))
         return {"code": 500, "msg": str(err), "data": None}

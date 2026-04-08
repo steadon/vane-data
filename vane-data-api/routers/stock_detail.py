@@ -1,4 +1,9 @@
-"""Detailed stock information from EastMoney."""
+"""Detailed stock information from EastMoney.
+
+Caching:
+  Cache key → "stock_detail:{symbol}"
+  TTL       → 30 s during trading, 10 min outside.
+"""
 
 import json
 import logging
@@ -9,6 +14,7 @@ from fastapi import APIRouter, Query
 from config import EASTMONEY_STOCK_URL
 from routers.kline import parse_symbol
 from routers.limit_pool import build_eastmoney_params
+from utils.cache import cache, ttl_for
 from utils.http_client import safe_fetch
 
 logger = logging.getLogger(__name__)
@@ -51,6 +57,11 @@ async def get_stock_detail(
     """Get detailed stock information."""
     if not symbol:
         return {"code": 400, "msg": "Missing required parameter: symbol", "data": None}
+
+    cache_key = f"stock_detail:{symbol}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return {"code": 200, "msg": "success", "data": cached}
 
     try:
         market, code = parse_symbol(symbol)
@@ -128,11 +139,8 @@ async def get_stock_detail(
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-        return {
-            "code": 200,
-            "msg": "success",
-            "data": result,
-        }
+        cache.set(cache_key, result, ttl_for("stock_detail"))
+        return {"code": 200, "msg": "success", "data": result}
     except Exception as err:
         logger.error("[stock-detail] Unexpected error: %s", str(err))
         return {"code": 500, "msg": str(err), "data": None}

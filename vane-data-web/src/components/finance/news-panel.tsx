@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { Newspaper, ExternalLink, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Newspaper, ExternalLink, Clock, Loader2 } from 'lucide-react'
 
 interface NewsItem {
   id: string
@@ -16,11 +17,8 @@ interface NewsItem {
   url: string
 }
 
-interface NewsData {
-  page: number
-  count: number
-  news: NewsItem[]
-}
+const PAGE_SIZE = 15
+const MAX_PAGES = 5   // cap at 5 pages (75 items) to prevent unbounded memory growth
 
 function timeAgo(timeStr: string): string {
   if (!timeStr) return ''
@@ -33,7 +31,6 @@ function timeAgo(timeStr: string): string {
   const diffMinutes = Math.floor(diffSeconds / 60)
   const diffHours = Math.floor(diffMinutes / 60)
 
-  // Check if it's yesterday
   const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const timeDate = new Date(time.getFullYear(), time.getMonth(), time.getDate())
   const dayDiff = Math.floor((nowDate.getTime() - timeDate.getTime()) / (1000 * 60 * 60 * 24))
@@ -45,7 +42,6 @@ function timeAgo(timeStr: string): string {
   if (dayDiff === 2) return '前天'
   if (dayDiff < 7) return `${dayDiff}天前`
 
-  // Fall back to date format
   const month = String(time.getMonth() + 1).padStart(2, '0')
   const day = String(time.getDate()).padStart(2, '0')
   return `${month}-${day}`
@@ -98,34 +94,57 @@ function NewsSkeleton() {
 }
 
 export default function FinanceNews() {
-  const [data, setData] = useState<NewsData | null>(null)
+  const [allNews, setAllNews] = useState<NewsItem[]>([])
+  const [page, setPage] = useState(1)
+  const [pageCount, setPageCount] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchNews = useCallback(async () => {
-    try {
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (append) {
+      setLoadingMore(true)
+    } else {
       setLoading(true)
       setError(null)
-      const res = await fetch('/api/finance/news?page=1&count=15')
+    }
+
+    try {
+      const res = await fetch(`/api/finance/news?page=${pageNum}&page_size=${PAGE_SIZE}`)
       const json = await res.json()
       if (json.code === 200 && json.data) {
-        setData(json.data)
+        const { news, page_count } = json.data as { news: NewsItem[]; page_count: number }
+        setPageCount(page_count)
+        setPage(pageNum)
+        if (append) {
+          // Deduplicate by id in case of overlap
+          setAllNews((prev) => {
+            const existingIds = new Set(prev.map((n) => n.id))
+            const fresh = news.filter((n: NewsItem) => !existingIds.has(n.id))
+            return [...prev, ...fresh]
+          })
+        } else {
+          setAllNews(news)
+        }
       } else {
-        setError(json.msg || '获取新闻失败')
+        if (!append) setError(json.msg || '获取新闻失败')
       }
     } catch {
-      setError('网络请求失败')
+      if (!append) setError('网络请求失败')
     } finally {
-      setLoading(false)
+      if (append) setLoadingMore(false)
+      else setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchNews()
-  }, [fetchNews])
+    fetchPage(1, false)
+  }, [fetchPage])
+
+  const hasMore = page < pageCount && page < MAX_PAGES
 
   return (
-    <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 flex-1 min-h-0 flex flex-col transition-all duration-150 hover:shadow-md">
+    <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all duration-150 hover:shadow-md">
       <CardHeader className="pb-1 px-2.5 pt-2 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
@@ -133,22 +152,24 @@ export default function FinanceNews() {
             <span className="h-3 w-[3px] rounded-full bg-blue-400" />
             财经快讯
           </CardTitle>
-          {data && (
+          {allNews.length > 0 && (
             <Badge variant="outline" className="text-[11px] text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700">
               东方财富
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-0 px-2 pb-1.5 flex-1 min-h-0 overflow-hidden">
-        <div className="max-h-[520px] overflow-y-auto custom-scrollbar">
+
+      <CardContent className="p-0 px-2 pb-2 flex flex-col">
+        {/* Fixed-height scroll area — card never grows when more news loads */}
+        <div className="h-[480px] overflow-y-auto custom-scrollbar">
           {loading ? (
             <NewsSkeleton />
           ) : error ? (
             <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-8">{error}</div>
-          ) : data?.news && data.news.length > 0 ? (
+          ) : allNews.length > 0 ? (
             <div className="space-y-0.5 px-1">
-              {data.news.map((item) => (
+              {allNews.map((item) => (
                 <NewsRow key={item.id} item={item} />
               ))}
             </div>
@@ -156,6 +177,28 @@ export default function FinanceNews() {
             <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-8">暂无新闻数据</div>
           )}
         </div>
+
+        {/* Load more button — only shown when there are more pages */}
+        {!loading && !error && hasMore && (
+          <div className="shrink-0 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full h-7 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              disabled={loadingMore}
+              onClick={() => fetchPage(page + 1, true)}
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 className="size-3 mr-1.5 animate-spin" />
+                  加载中…
+                </>
+              ) : (
+                `加载更多 (第 ${page + 1} 页)`
+              )}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -19,28 +19,22 @@ interface MarketHeatmapProps {
 export default function MarketHeatmap({ onSectorClick }: MarketHeatmapProps) {
   const [sectors, setSectors] = useState<SectorHeatItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState<'change' | 'stocks'>('change')
 
   const fetchSectors = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/finance/sectors?type=industry')
+      // Request exactly 24 in the API's natural order — no client-side sorting.
+      const res = await fetch('/api/finance/sectors?type=industry&page=1&page_size=24')
       const json = await res.json()
       if (json.code === 200 && json.data?.sectors) {
-        // Take top 24 sectors for the grid
-        const sorted = [...json.data.sectors]
-          .sort((a: SectorHeatItem, b: SectorHeatItem) =>
-            sortBy === 'change' ? b.change_percent - a.change_percent : b.stock_count - a.stock_count
-          )
-          .slice(0, 24)
-        setSectors(sorted)
+        setSectors(json.data.sectors)
       }
     } catch {
       // silent
     } finally {
       setLoading(false)
     }
-  }, [sortBy])
+  }, [])
 
   useEffect(() => { fetchSectors() }, [fetchSectors])
 
@@ -59,27 +53,11 @@ export default function MarketHeatmap({ onSectorClick }: MarketHeatmapProps) {
   return (
     <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all duration-150 hover:shadow-md">
       <CardHeader className="pb-1 px-2.5 pt-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-            <Grid3X3 className="size-3 text-blue-500" />
-            <span className="h-3 w-[3px] rounded-full bg-blue-400" />
-            行业热力图
-          </CardTitle>
-          <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
-            <button
-              className={`text-[10px] px-1.5 py-0.5 rounded-sm transition-colors ${sortBy === 'change' ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-              onClick={() => setSortBy('change')}
-            >
-              涨幅
-            </button>
-            <button
-              className={`text-[10px] px-1.5 py-0.5 rounded-sm transition-colors ${sortBy === 'stocks' ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-              onClick={() => setSortBy('stocks')}
-            >
-              个股数
-            </button>
-          </div>
-        </div>
+        <CardTitle className="text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+          <Grid3X3 className="size-3 text-blue-500" />
+          <span className="h-3 w-[3px] rounded-full bg-blue-400" />
+          行业热力图
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-2 pt-0">
         {loading ? (

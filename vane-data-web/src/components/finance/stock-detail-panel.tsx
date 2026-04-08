@@ -167,27 +167,16 @@ function CapitalFlowSection({ flows, loading }: { flows: CapitalFlow[]; loading:
           const pct = Math.min(100, (Math.abs(cat.value) / maxAbs) * 100)
           return (
             <div key={cat.label} className="flex items-center gap-1.5">
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 w-6 shrink-0 text-right">{cat.label}</span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 w-9 shrink-0">{cat.label}</span>
               <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-sm overflow-hidden relative">
-                {isPos ? (
-                  <div
-                    className="absolute right-0 top-0 h-full rounded-sm"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: cat.colorIn,
-                      opacity: 0.75,
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="absolute left-0 top-0 h-full rounded-sm"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: cat.colorOut,
-                      opacity: 0.75,
-                    }}
-                  />
-                )}
+                <div
+                  className="absolute left-0 top-0 h-full rounded-sm"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: isPos ? cat.colorIn : cat.colorOut,
+                    opacity: 0.75,
+                  }}
+                />
               </div>
               <span className={`text-[10px] tabular-nums font-medium w-16 text-right shrink-0 ${isPos ? 'text-red-500' : 'text-green-500'}`}>
                 {formatMoney(cat.value * 1e4)}
