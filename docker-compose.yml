@@ -1,0 +1,38 @@
+services:
+  # Python FastAPI — financial data aggregation backend
+  api:
+    build: ./vane-data-api
+    container_name: vane-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Socket.IO WebSocket server — real-time quote push
+  ws:
+    build: ./vane-data-web/ws-finance
+    container_name: vane-ws
+    ports:
+      - "3003:3003"
+    restart: unless-stopped
+
+  # Next.js frontend — visualization dashboard
+  web:
+    build: ./vane-data-web
+    container_name: vane-web
+    ports:
+      - "3000:3000"
+    environment:
+      - VANE_API_URL=http://api:8000
+      - NEXT_PUBLIC_WS_URL=http://ws:3003
+    depends_on:
+      api:
+        condition: service_healthy
+      ws:
+        condition: service_started
+    restart: unless-stopped
