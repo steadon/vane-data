@@ -140,8 +140,8 @@ export default function FinanceNews() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-0 px-2 pb-1.5 flex-1 min-h-0">
-        <div className="h-full overflow-y-auto custom-scrollbar">
+      <CardContent className="p-0 px-2 pb-1.5 flex-1 min-h-0 overflow-hidden">
+        <div className="max-h-[520px] overflow-y-auto custom-scrollbar">
           {loading ? (
             <NewsSkeleton />
           ) : error ? (

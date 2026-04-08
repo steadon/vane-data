@@ -79,7 +79,7 @@ async def get_kline(
         key = f"{market}{code}"
         stock_data = (data.get("data") or {}).get(key, {})
         fq_key = f"{fq}{period}" if fq else period
-        qfq_list = stock_data.get(fq_key, [])
+        qfq_list = stock_data.get(fq_key) or stock_data.get(period, [])
 
         # Extract stock name from qt field
         qt_info = (stock_data.get("qt") or {}).get(key, [])

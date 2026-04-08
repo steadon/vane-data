@@ -105,7 +105,7 @@ async def safe_fetch(
                 resp.status_code, url, attempt, MAX_RETRIES,
             )
 
-        except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as e:
+        except httpx.HTTPError as e:
             logger.warning(
                 "[http_client] Request error for %s (attempt %d/%d): %s",
                 url, attempt, MAX_RETRIES, str(e),

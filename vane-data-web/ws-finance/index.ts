@@ -285,9 +285,16 @@ httpServer.listen(PORT, () => {
 function shutdown(signal: string) {
   console.log(`[ws-finance] Received ${signal}, shutting down...`)
   stopPolling()
-  httpServer.close(() => {
-    console.log('[ws-finance] Server closed')
-    process.exit(0)
+
+  // Force exit after 3s in case connections stall
+  setTimeout(() => process.exit(0), 3000).unref()
+
+  // Close all Socket.IO connections first, then the HTTP server
+  io.close(() => {
+    httpServer.close(() => {
+      console.log('[ws-finance] Server closed')
+      process.exit(0)
+    })
   })
 }
 

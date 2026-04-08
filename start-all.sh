@@ -1,8 +1,6 @@
 #!/bin/bash
 # Start all services: Python API + WebSocket + Next.js
 # Usage: bun run dev  (or bash start-all.sh)
-set -e
-
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 API_DIR="$PROJECT_DIR/vane-data-api"
 WEB_DIR="$PROJECT_DIR/vane-data-web"
@@ -10,16 +8,19 @@ WS_DIR="$WEB_DIR/ws-finance"
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 
+_CLEANED=0
 cleanup() {
+    [ "$_CLEANED" -eq 1 ] && return
+    _CLEANED=1
     echo ""
     echo "Stopping all services..."
-    [ -n "$API_PID" ] && kill "$API_PID" 2>/dev/null
-    [ -n "$WS_PID" ]  && kill "$WS_PID"  2>/dev/null
-    [ -n "$DEV_PID" ] && kill "$DEV_PID" 2>/dev/null
-    wait 2>/dev/null
+    lsof -ti :3000 | xargs kill -9 2>/dev/null
+    lsof -ti :3003 | xargs kill -9 2>/dev/null
+    lsof -ti :8000 | xargs kill -9 2>/dev/null
     echo "All services stopped."
+    exit 0
 }
-trap cleanup EXIT INT TERM
+trap cleanup INT TERM
 
 # ── Python API setup ───────────────────────────────────────────────────────────
 
@@ -84,15 +85,7 @@ echo ""
 echo "Logs: api.log, ws.log  |  Press Ctrl+C to stop all."
 echo ""
 
-# Wait for any process to exit (bash 3.2 compatible)
+# Keep alive until Ctrl+C (trap handles cleanup)
 while true; do
-    for pid in "$API_PID" "$WS_PID" "$DEV_PID"; do
-        if ! kill -0 "$pid" 2>/dev/null; then
-            wait "$pid"
-            EXIT_CODE=$?
-            echo "A service (PID $pid) exited with code $EXIT_CODE. Stopping all..."
-            exit $EXIT_CODE
-        fi
-    done
-    sleep 1
+    sleep 60
 done

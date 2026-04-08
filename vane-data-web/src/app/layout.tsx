@@ -25,9 +25,8 @@ export const metadata: Metadata = {
   title: "Vane Data - A股金融数据聚合服务",
   description: "A股金融数据聚合服务，提供实时行情、K线图表、涨跌停股票池、板块分析等功能。",
   keywords: ["金融", "股票", "A股", "K线", "行情", "板块", "Vane Data"],
-  authors: [{ name: "Z.ai Team" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
   },
   openGraph: {
     title: "Vane Data",
