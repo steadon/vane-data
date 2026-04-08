@@ -10,6 +10,8 @@
 
 一个开源的 A 股行情数据平台。后端（`vane-data-api`）从腾讯财经、新浪财经、东方财富等公开接口拉数据，封装成标准的 REST + WebSocket API；前端（`vane-data-web`）是基于 Next.js 做的看盘界面，同时也是调用 API 的参考实现。两者可以一起跑，也可以独立部署——如果你只想要数据接口，完全不需要前端。
 
+后端内置内存 LRU+TTL 缓存，交易时段自动缩短 TTL 保证实时性，盘后延长降低上游压力；多个数据源自动兜底切换，内置反爬容错机制。
+
 ## 项目结构
 
 ```
@@ -28,7 +30,7 @@ vane-data/
 | 实时行情 | 腾讯财经（主）/ 新浪财经（备） |
 | K 线数据 | 腾讯财经 |
 | 个股详情、板块、资金流向、新闻 | 东方财富 |
-| 涨跌停池 | 东方财富 |
+| 涨跌停池 | 东方财富（主）/ 新浪财经（备） |
 
 ## 快速开始
 
@@ -134,12 +136,12 @@ server {
 | `GET /api/health` | 健康检查 |
 | `GET /api/quote` | 实时行情（支持批量） |
 | `GET /api/kline` | K 线数据（日/周/月，支持复权） |
-| `GET /api/limit-pool` | 涨停 / 跌停股票池 |
-| `GET /api/sectors` | 行业 / 概念板块列表 |
-| `GET /api/sector-stocks` | 板块成分股 |
+| `GET /api/limit-pool` | 涨停 / 跌停股票池（支持分页） |
+| `GET /api/sectors` | 行业 / 概念板块列表（支持分页） |
+| `GET /api/sector-stocks` | 板块成分股（支持分页） |
 | `GET /api/stock-detail` | 个股详情 |
 | `GET /api/capital-flow` | 资金流向 |
-| `GET /api/news` | 财经新闻 |
+| `GET /api/news` | 财经新闻（支持分页） |
 | `WS /ws/quotes` | WebSocket 实时行情推送 |
 
 完整接口文档：[vane-data-api/README.md](./vane-data-api/README.md)
@@ -161,7 +163,7 @@ server {
 ## 常见问题
 
 **数据延迟多久？**
-交易时段约 3–10 秒，非交易时段是收盘快照。
+交易时段约 3–10 秒，非交易时段是收盘快照。后端内置 LRU+TTL 缓存，交易时段自动缩短 TTL 保证实时性。
 
 **有请求频率限制吗？**
 本服务没有限流，但上游平台有反爬机制，建议单 IP 请求间隔保持在 500ms 以上。

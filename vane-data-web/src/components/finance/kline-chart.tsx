@@ -577,8 +577,8 @@ export default function KLineChart({
       .map((d) => d.date)
   }, [chartData, tickInterval])
 
-  // Dynamic right margin for MA YAxis alignment
-  const rightMargin = showMA ? 55 : 10
+  // Consistent right margin for all charts (MA values shown in legend bar)
+  const rightMargin = 10
 
   const lastBar = chartData.length > 0 ? chartData[chartData.length - 1] : null
   const prevClose = lastBar
@@ -1001,19 +1001,6 @@ export default function KLineChart({
                 <Customized
                   component={(cp: Record<string, unknown>) => <CandlestickRenderer {...cp} bars={chartData} showMA={showMA} showBOLL={showBOLL} isDark={isDark} />}
                 />
-                {/* MA legend YAxis on right side (visual reference only) */}
-                {showMA && (
-                  <YAxis
-                    yAxisId="ma"
-                    domain={[priceRange.min, priceRange.max]}
-                    orientation="right"
-                    tick={{ fill: tickColor, fontSize: 10 }}
-                    axisLine={{ stroke: axisLineColor }}
-                    tickLine={{ stroke: axisLineColor }}
-                    tickFormatter={(v: number) => v.toFixed(2)}
-                    width={45}
-                  />
-                )}
                 {/* Invisible bar to establish graphical items for Customized */}
                 <Bar
                   yAxisId="price"

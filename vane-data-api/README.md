@@ -8,6 +8,9 @@
 - 无状态，不依赖数据库
 - 异步 HTTP 客户端，带自动重试和超时
 - 自动处理中文金融 API 的 GBK/UTF-8 编码
+- 内存 LRU+TTL 缓存，交易时段短 TTL，盘后自动延长
+- 多数据源自动兜底（东方财富 → 新浪财经）
+- 反爬容错：备用域名、加密参数构建、Referer 伪装
 - 自动生成 Swagger 文档（`/docs`）
 - CORS 默认全开（可配置）
 
@@ -196,20 +199,24 @@ curl "http://localhost:8000/api/kline?symbol=sh600519&period=day&adjust=qfq&coun
 GET /api/limit-pool
 ```
 
-查询当日涨停或跌停股票池。
+查询当日涨停或跌停股票池。主数据源为东方财富，自动兜底到新浪财经（4 个市场节点并行抓取，按涨跌幅阈值筛选）。
 
 **参数：**
 
 | 参数 | 必填 | 类型 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `type` | 否 | string | `limit_up` | `limit_up`（涨停）或 `limit_down`（跌停） |
+| `page` | 否 | integer | `1` | 页码（从 1 开始） |
+| `page_size` | 否 | integer | `20` | 每页条数（1–100） |
 
 涨跌停阈值：主板 ±9.8%，科创板（688xx）和创业板（300xx）±19.5%。
+
+**缓存：** 交易时段 30 秒，盘后 5 分钟。
 
 **示例：**
 
 ```bash
-curl "http://localhost:8000/api/limit-pool?type=limit_up"
+curl "http://localhost:8000/api/limit-pool?type=limit_up&page=1&page_size=20"
 ```
 
 **响应 `data`：**
@@ -217,7 +224,10 @@ curl "http://localhost:8000/api/limit-pool?type=limit_up"
 ```json
 {
   "type": "limit_up",
-  "count": 48,
+  "source": "eastmoney",
+  "total": 48,
+  "page": 1,
+  "page_size": 20,
   "stocks": [
     {
       "symbol": "sz000001",
@@ -239,36 +249,46 @@ curl "http://localhost:8000/api/limit-pool?type=limit_up"
 GET /api/sectors
 ```
 
-查询行业或概念板块排行。
+查询行业或概念板块排行。主数据源为东方财富 push2delay，自动兜底到 push2 节点。
 
 **参数：**
 
 | 参数 | 必填 | 类型 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `type` | 否 | string | `industry` | `industry`（行业）或 `concept`（概念） |
+| `page` | 否 | integer | `1` | 页码（从 1 开始） |
+| `page_size` | 否 | integer | `20` | 每页条数（1–100） |
+
+**缓存：** 交易时段 1 分钟，盘后 30 分钟。
 
 **示例：**
 
 ```bash
-curl "http://localhost:8000/api/sectors?type=industry"
+curl "http://localhost:8000/api/sectors?type=industry&page=1&page_size=20"
 ```
 
-**响应 `data`：** 板块对象数组。
+**响应 `data`：**
 
 ```json
-[
-  {
-    "code": "BK0477",
-    "name": "白酒",
-    "change_percent": 1.25,
-    "limit_up_count": 3,
-    "stock_count": 28,
-    "lead_stock_name": "贵州茅台",
-    "lead_stock_code": "sh600519",
-    "lead_stock_change": 2.10,
-    "market_cap": 3400000000000.0
-  }
-]
+{
+  "source": "eastmoney",
+  "total": 86,
+  "page": 1,
+  "page_size": 20,
+  "sectors": [
+    {
+      "code": "BK0477",
+      "name": "白酒",
+      "change_percent": 1.25,
+      "limit_up_count": 3,
+      "stock_count": 28,
+      "lead_stock_name": "贵州茅台",
+      "lead_stock_code": "sh600519",
+      "lead_stock_change": 2.10,
+      "market_cap": 3400000000000.0
+    }
+  ]
+}
 ```
 
 ---
@@ -283,28 +303,37 @@ GET /api/sector-stocks
 
 **参数：**
 
-| 参数 | 必填 | 类型 | 说明 |
-|------|------|------|------|
-| `code` | 是 | string | 板块代码，来自 `/api/sectors`，如 `BK0477` |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `code` | 是 | string | — | 板块代码，来自 `/api/sectors`，如 `BK0477` |
+| `page` | 否 | integer | `1` | 页码（从 1 开始） |
+| `page_size` | 否 | integer | `20` | 每页条数（1–100） |
+
+**缓存：** 交易时段 2 分钟，盘后 1 小时。
 
 **示例：**
 
 ```bash
-curl "http://localhost:8000/api/sector-stocks?code=BK0477"
+curl "http://localhost:8000/api/sector-stocks?code=BK0477&page=1&page_size=20"
 ```
 
-**响应 `data`：** 成分股数组（最多 100 条）。
+**响应 `data`：**
 
 ```json
-[
-  {
-    "symbol": "sh600519",
-    "code": "600519",
-    "name": "贵州茅台",
-    "price": 1440.02,
-    "change_percent": -1.37
-  }
-]
+{
+  "total": 28,
+  "page": 1,
+  "page_size": 20,
+  "stocks": [
+    {
+      "symbol": "sh600519",
+      "code": "600519",
+      "name": "贵州茅台",
+      "price": 1440.02,
+      "change_percent": -1.37
+    }
+  ]
+}
 ```
 
 ---
@@ -316,6 +345,8 @@ GET /api/stock-detail
 ```
 
 查询单只股票的详细基本面和技术数据。
+
+**缓存：** 交易时段 30 秒，盘后 10 分钟。
 
 **参数：**
 
@@ -374,6 +405,8 @@ GET /api/capital-flow
 ```
 
 查询某只股票的每日主力/散户资金净流入情况。
+
+**缓存：** 交易时段 1 分钟，盘后 30 分钟。
 
 **参数：**
 
@@ -435,12 +468,14 @@ GET /api/news
 | 参数 | 必填 | 类型 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `page` | 否 | integer | `1` | 页码（从 1 开始） |
-| `count` | 否 | integer | `20` | 每页条数（1–50） |
+| `page_size` | 否 | integer | `15` | 每页条数（1–50） |
+
+**缓存：** 固定 3 分钟（新闻不受交易时段影响）。
 
 **示例：**
 
 ```bash
-curl "http://localhost:8000/api/news?page=1&count=20"
+curl "http://localhost:8000/api/news?page=1&page_size=15"
 ```
 
 **响应 `data`：**
@@ -525,6 +560,7 @@ vane-data-api/
 ├── services/
 │   └── websocket.py    # WebSocket 处理器
 └── utils/
+    ├── cache.py        # 内存 LRU+TTL 缓存（感知交易时段）
     └── http_client.py  # 共享异步 HTTP 客户端（带重试和 GBK 解码）
 ```
 
@@ -535,7 +571,9 @@ vane-data-api/
 | 实时行情 | 腾讯财经（主）/ 新浪财经（备） |
 | K 线数据 | 腾讯财经 |
 | 个股详情、资金流向、板块、新闻 | 东方财富 |
-| 涨跌停池 | 东方财富 |
+| 涨跌停池 | 东方财富（主）/ 新浪财经（备） |
+
+交易时段数据延迟约 3–10 秒。多个数据源自动兜底切换。
 
 交易时段数据延迟约 3–10 秒。
 
