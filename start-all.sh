@@ -84,8 +84,15 @@ echo ""
 echo "Logs: api.log, ws.log  |  Press Ctrl+C to stop all."
 echo ""
 
-# Wait for any process to exit
-wait -n "$API_PID" "$WS_PID" "$DEV_PID" 2>/dev/null
-EXIT_CODE=$?
-echo "A service exited with code $EXIT_CODE. Stopping all..."
-exit $EXIT_CODE
+# Wait for any process to exit (bash 3.2 compatible)
+while true; do
+    for pid in "$API_PID" "$WS_PID" "$DEV_PID"; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid"
+            EXIT_CODE=$?
+            echo "A service (PID $pid) exited with code $EXIT_CODE. Stopping all..."
+            exit $EXIT_CODE
+        fi
+    done
+    sleep 1
+done

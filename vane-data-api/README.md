@@ -1,65 +1,64 @@
 # vane-data-api
 
-A-Share market financial data aggregation backend built with Python + FastAPI. Provides REST APIs and a WebSocket endpoint for real-time stock quotes, K-line data, sector analysis, capital flow, and financial news. All data is sourced from public Chinese financial platforms (Tencent Finance, Sina Finance, EastMoney).
+基于 Python + FastAPI 的 A 股行情数据聚合后端。从腾讯财经、新浪财经、东方财富等公开接口拉数据，提供 8 个 REST 接口和 1 个 WebSocket 实时推送端点。无需数据库，无状态，直接跑起来就能用。
 
-## Features
+## 特性
 
-- 8 REST endpoints + 1 WebSocket endpoint
-- Stateless — no database required
-- Async HTTP client with automatic retry and timeout
-- Handles GBK/UTF-8 encoding from Chinese financial APIs
-- Swagger UI auto-generated at `/docs`
-- CORS enabled for all origins (configurable)
+- 8 个 REST 接口 + 1 个 WebSocket 接口
+- 无状态，不依赖数据库
+- 异步 HTTP 客户端，带自动重试和超时
+- 自动处理中文金融 API 的 GBK/UTF-8 编码
+- 自动生成 Swagger 文档（`/docs`）
+- CORS 默认全开（可配置）
 
-## Requirements
+## 环境要求
 
 - Python 3.10+
 - pip
 
-## Quick Start
+## 快速开始
 
 ```bash
 cd vane-data-api
 
-# Create and activate virtual environment
+# 建虚拟环境
 python3 -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 
-# Install dependencies
+# 装依赖
 pip install -r requirements.txt
 
-# Start server (port 8000)
+# 启动（端口 8000）
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`.
-Interactive docs: `http://localhost:8000/docs`
+启动后访问 `http://localhost:8000`，Swagger 文档在 `http://localhost:8000/docs`。
 
-## Environment Variables
+## 环境变量
 
-Copy `.env.example` to `.env` and adjust as needed:
+复制 `.env.example` 为 `.env` 按需修改：
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST` | `0.0.0.0` | Bind address |
-| `PORT` | `8000` | Listen port |
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `HOST` | `0.0.0.0` | 绑定地址 |
+| `PORT` | `8000` | 监听端口 |
 
-## Production Deployment
+## 生产部署
 
 ```bash
-# Using uvicorn directly
+# 直接用 uvicorn（多 worker）
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
 
-# Using Docker
+# Docker
 docker build -t vane-api .
 docker run -p 8000:8000 vane-api
 ```
 
 ---
 
-## API Reference
+## 接口文档
 
-All endpoints share a unified response envelope:
+所有接口统一返回以下格式：
 
 ```json
 {
@@ -69,24 +68,24 @@ All endpoints share a unified response envelope:
 }
 ```
 
-| `code` | Meaning |
-|--------|---------|
-| `200` | Success |
-| `400` | Invalid parameter |
-| `502` | Upstream data source error |
-| `500` | Internal server error |
+| `code` | 含义 |
+|--------|------|
+| `200` | 成功 |
+| `400` | 参数错误 |
+| `502` | 上游数据源异常 |
+| `500` | 内部错误 |
 
 ---
 
-### Health Check
+### 健康检查
 
 ```
 GET /api/health
 ```
 
-Returns server status. Used by orchestrators and load balancers.
+返回服务状态，适合用于探活和负载均衡。
 
-**Response:**
+**响应：**
 
 ```json
 {
@@ -98,30 +97,30 @@ Returns server status. Used by orchestrators and load balancers.
 
 ---
 
-### Real-time Quotes
+### 实时行情
 
 ```
 GET /api/quote
 ```
 
-Fetch real-time quotes for one or more A-Share stocks.
+查询一只或多只 A 股的实时行情。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Description |
-|-----------|----------|------|-------------|
-| `symbols` | Yes | string | Comma-separated stock codes, e.g. `sh600519,sz000001` |
-| `source` | No | string | `tencent` (default) or `sina` |
+| 参数 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| `symbols` | 是 | string | 逗号分隔的股票代码，如 `sh600519,sz000001` |
+| `source` | 否 | string | `tencent`（默认）或 `sina` |
 
-**Symbol Format:** `{market}{code}` — market prefix is `sh` (Shanghai) or `sz` (Shenzhen). Bare codes also accepted: `600519` → `sh600519`, `000001` → `sz000001`.
+**股票代码格式：** `{市场}{代码}`，市场前缀 `sh`（上海）或 `sz`（深圳）。也接受裸代码：`600519` → `sh600519`，`000001` → `sz000001`。
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/quote?symbols=sh600519,sz000001"
 ```
 
-**Response `data`:** Array of quote objects.
+**响应 `data`：** 行情对象数组。
 
 ```json
 [
@@ -148,32 +147,32 @@ curl "http://localhost:8000/api/quote?symbols=sh600519,sz000001"
 
 ---
 
-### K-Line Data
+### K 线数据
 
 ```
 GET /api/kline
 ```
 
-Fetch candlestick (OHLCV) data for a stock.
+获取某只股票的 K 线（OHLCV）数据。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `symbol` | Yes | string | — | Stock code, e.g. `sh600519` |
-| `period` | No | string | `day` | `day`, `week`, or `month` |
-| `adjust` | No | string | `qfq` | Adjustment: `qfq` (forward), `hfq` (backward), `none` |
-| `count` | No | integer | `320` | Number of bars to return |
-| `start_date` | No | string | — | Start date `YYYYMMDD`, e.g. `20240101` |
-| `end_date` | No | string | — | End date `YYYYMMDD` |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `symbol` | 是 | string | — | 股票代码，如 `sh600519` |
+| `period` | 否 | string | `day` | `day`、`week` 或 `month` |
+| `adjust` | 否 | string | `qfq` | 复权：`qfq`（前复权）、`hfq`（后复权）、`none` |
+| `count` | 否 | integer | `320` | 返回条数 |
+| `start_date` | 否 | string | — | 起始日期 `YYYYMMDD`，如 `20240101` |
+| `end_date` | 否 | string | — | 结束日期 `YYYYMMDD` |
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/kline?symbol=sh600519&period=day&adjust=qfq&count=60"
 ```
 
-**Response `data`:** Array of candlestick objects.
+**响应 `data`：** K 线对象数组。
 
 ```json
 [
@@ -191,29 +190,29 @@ curl "http://localhost:8000/api/kline?symbol=sh600519&period=day&adjust=qfq&coun
 
 ---
 
-### Limit-Up / Limit-Down Pool
+### 涨跌停池
 
 ```
 GET /api/limit-pool
 ```
 
-Fetch stocks that hit the daily price limit (涨停/跌停).
+查询当日涨停或跌停股票池。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `type` | No | string | `limit_up` | `limit_up` (涨停) or `limit_down` (跌停) |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `type` | 否 | string | `limit_up` | `limit_up`（涨停）或 `limit_down`（跌停） |
 
-Limit thresholds: ±9.8% for main-board stocks, ±19.5% for STAR Market (688xx) and ChiNext (300xx).
+涨跌停阈值：主板 ±9.8%，科创板（688xx）和创业板（300xx）±19.5%。
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/limit-pool?type=limit_up"
 ```
 
-**Response `data`:**
+**响应 `data`：**
 
 ```json
 {
@@ -234,27 +233,27 @@ curl "http://localhost:8000/api/limit-pool?type=limit_up"
 
 ---
 
-### Sector List
+### 板块列表
 
 ```
 GET /api/sectors
 ```
 
-Fetch industry or concept sector rankings.
+查询行业或概念板块排行。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `type` | No | string | `industry` | `industry` (行业) or `concept` (概念) |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `type` | 否 | string | `industry` | `industry`（行业）或 `concept`（概念） |
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/sectors?type=industry"
 ```
 
-**Response `data`:** Array of sector objects.
+**响应 `data`：** 板块对象数组。
 
 ```json
 [
@@ -274,27 +273,27 @@ curl "http://localhost:8000/api/sectors?type=industry"
 
 ---
 
-### Sector Stocks
+### 板块成分股
 
 ```
 GET /api/sector-stocks
 ```
 
-Fetch constituent stocks of a given sector.
+查询某个板块的成分股。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Description |
-|-----------|----------|------|-------------|
-| `code` | Yes | string | Sector code from `/api/sectors`, e.g. `BK0477` |
+| 参数 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| `code` | 是 | string | 板块代码，来自 `/api/sectors`，如 `BK0477` |
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/sector-stocks?code=BK0477"
 ```
 
-**Response `data`:** Array of stock objects (up to 100).
+**响应 `data`：** 成分股数组（最多 100 条）。
 
 ```json
 [
@@ -310,27 +309,27 @@ curl "http://localhost:8000/api/sector-stocks?code=BK0477"
 
 ---
 
-### Stock Detail
+### 个股详情
 
 ```
 GET /api/stock-detail
 ```
 
-Fetch comprehensive fundamental and technical data for a single stock.
+查询单只股票的详细基本面和技术数据。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Description |
-|-----------|----------|------|-------------|
-| `symbol` | Yes | string | Stock code, e.g. `sh600519` |
+| 参数 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| `symbol` | 是 | string | 股票代码，如 `sh600519` |
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/stock-detail?symbol=sh600519"
 ```
 
-**Response `data`:**
+**响应 `data`：**
 
 ```json
 {
@@ -368,28 +367,28 @@ curl "http://localhost:8000/api/stock-detail?symbol=sh600519"
 
 ---
 
-### Capital Flow
+### 资金流向
 
 ```
 GET /api/capital-flow
 ```
 
-Fetch daily net capital inflow/outflow breakdown for a stock.
+查询某只股票的每日主力/散户资金净流入情况。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `symbol` | Yes | string | — | Stock code, e.g. `sh600519` |
-| `days` | No | integer | `10` | Number of days (1–30) |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `symbol` | 是 | string | — | 股票代码，如 `sh600519` |
+| `days` | 否 | integer | `10` | 天数（1–30） |
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/capital-flow?symbol=sh600519&days=10"
 ```
 
-**Response `data`:**
+**响应 `data`：**
 
 ```json
 {
@@ -413,38 +412,38 @@ curl "http://localhost:8000/api/capital-flow?symbol=sh600519&days=10"
 }
 ```
 
-**Flow categories:**
-- `main_net` — Main force (super-large + large orders combined)
-- `super_large_net` — Orders > 1M CNY
-- `large_net` — Orders 200K–1M CNY
-- `mid_net` — Orders 50K–200K CNY
-- `small_net` — Orders < 50K CNY
-- `retail_*` — Retail investor breakdown
+**资金分类说明：**
+- `main_net` — 主力（超大单 + 大单合计）
+- `super_large_net` — 超大单（> 100万）
+- `large_net` — 大单（20万–100万）
+- `mid_net` — 中单（5万–20万）
+- `small_net` — 小单（< 5万）
+- `retail_*` — 散户各档位明细
 
 ---
 
-### Financial News
+### 财经新闻
 
 ```
 GET /api/news
 ```
 
-Fetch the latest financial news from EastMoney.
+获取东方财富最新财经新闻。
 
-**Query Parameters:**
+**参数：**
 
-| Parameter | Required | Type | Default | Description |
-|-----------|----------|------|---------|-------------|
-| `page` | No | integer | `1` | Page number (1-based) |
-| `count` | No | integer | `20` | Items per page (1–50) |
+| 参数 | 必填 | 类型 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `page` | 否 | integer | `1` | 页码（从 1 开始） |
+| `count` | 否 | integer | `20` | 每页条数（1–50） |
 
-**Example:**
+**示例：**
 
 ```bash
 curl "http://localhost:8000/api/news?page=1&count=20"
 ```
 
-**Response `data`:**
+**响应 `data`：**
 
 ```json
 {
@@ -466,27 +465,27 @@ curl "http://localhost:8000/api/news?page=1&count=20"
 
 ---
 
-### WebSocket — Real-time Quotes
+### WebSocket 实时行情
 
 ```
 ws://localhost:8000/ws/quotes
 ```
 
-Subscribe to real-time quote streaming. The server polls Tencent Finance every 3 seconds and broadcasts updates to subscribed clients.
+订阅实时行情推送，服务端每 3 秒轮询腾讯财经并广播给已订阅的客户端。
 
-**Client → Server messages:**
+**客户端 → 服务端：**
 
-Subscribe to symbols:
+订阅：
 ```json
 { "type": "subscribe", "symbols": ["sh600519", "sz000001"] }
 ```
 
-Unsubscribe:
+取消订阅：
 ```json
 { "type": "unsubscribe", "symbols": ["sh600519"] }
 ```
 
-**Server → Client messages:**
+**服务端 → 客户端：**
 
 ```json
 {
@@ -505,28 +504,13 @@ Unsubscribe:
 
 ---
 
-## Common Stock Codes
-
-| Symbol | Name |
-|--------|------|
-| `sh000001` | 上证指数 (SSE Composite) |
-| `sz399001` | 深证成指 (SZSE Component) |
-| `sz399006` | 创业板指 (ChiNext) |
-| `sh000688` | 科创50 (STAR Market 50) |
-| `sh600519` | 贵州茅台 (Kweichow Moutai) |
-| `sz000001` | 平安银行 (Ping An Bank) |
-| `sz300750` | 宁德时代 (CATL) |
-| `sz002594` | 比亚迪 (BYD) |
-
----
-
-## Project Structure
+## 项目结构
 
 ```
 vane-data-api/
-├── main.py             # FastAPI app, CORS, route registration, lifespan
-├── config.py           # Constants: URLs, timeouts, headers
-├── requirements.txt    # Python dependencies
+├── main.py             # FastAPI 入口，CORS、路由注册、生命周期
+├── config.py           # 常量配置：URL、超时、请求头
+├── requirements.txt    # Python 依赖
 ├── Dockerfile
 ├── .env.example
 ├── routers/
@@ -539,21 +523,21 @@ vane-data-api/
 │   ├── capital_flow.py # GET /api/capital-flow
 │   └── news.py         # GET /api/news
 ├── services/
-│   └── websocket.py    # WebSocket handler — real-time quote push
+│   └── websocket.py    # WebSocket 处理器
 └── utils/
-    └── http_client.py  # Shared async HTTP client with retry & GBK decoding
+    └── http_client.py  # 共享异步 HTTP 客户端（带重试和 GBK 解码）
 ```
 
-## Data Sources
+## 数据来源
 
-| Feature | Source |
-|---------|--------|
-| Real-time quotes | Tencent Finance (primary) / Sina Finance (fallback) |
-| K-line data | Tencent Finance |
-| Stock detail, capital flow, sectors, news | EastMoney |
-| Limit-up/down pool | EastMoney |
+| 功能 | 数据源 |
+|------|--------|
+| 实时行情 | 腾讯财经（主）/ 新浪财经（备） |
+| K 线数据 | 腾讯财经 |
+| 个股详情、资金流向、板块、新闻 | 东方财富 |
+| 涨跌停池 | 东方财富 |
 
-> **Note:** All data is sourced from publicly accessible financial platforms. Data accuracy depends on upstream sources. Typical latency during trading hours is 3–10 seconds.
+交易时段数据延迟约 3–10 秒。
 
 ## License
 

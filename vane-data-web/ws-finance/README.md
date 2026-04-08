@@ -1,41 +1,40 @@
 # ws-finance
 
-Socket.IO WebSocket server for real-time A-Share stock quote streaming. Polls Tencent Finance every 3 seconds and pushes updates to subscribed clients.
+一个独立的 Socket.IO 服务，每 3 秒轮询腾讯财经，把行情更新实时推送给订阅的客户端。
 
-## Requirements
+## 环境要求
 
 - Bun >= 1.0
 
-## Quick Start
+## 快速开始
 
 ```bash
 cd ws-finance
 bun install
-bun run dev    # development (hot reload)
-bun run start  # production
+bun run dev    # 开发模式（热重载）
+bun run start  # 生产模式
 ```
 
-Server listens on port **3003**.
+监听端口 **3003**。
 
-## Protocol
+## 通信协议
 
-### Client → Server
+### 客户端 → 服务端
 
-Subscribe to symbols:
+订阅行情，发送 `subscribe` 事件：
 ```json
 ["sh600519", "sz000001"]
 ```
-Emit as the `subscribe` event. Accepts a single string or an array.
+支持传单个字符串或数组。
 
-Unsubscribe:
+取消订阅，发送 `unsubscribe` 事件：
 ```json
 ["sh600519"]
 ```
-Emit as the `unsubscribe` event.
 
-### Server → Client
+### 服务端 → 客户端
 
-Quote update (`quote` event):
+行情更新（`quote` 事件）：
 ```json
 {
   "type": "quote",
@@ -51,7 +50,7 @@ Quote update (`quote` event):
 }
 ```
 
-Subscription confirmed (`subscribed` event):
+订阅确认（`subscribed` 事件）：
 ```json
 { "symbols": ["sh600519", "sz000001"] }
 ```

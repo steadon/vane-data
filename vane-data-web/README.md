@@ -1,77 +1,75 @@
 # vane-data-web
 
-A-Share market visualization dashboard built with Next.js 16. Connects to [vane-data-api](../vane-data-api/README.md) for financial data and [ws-finance](./ws-finance/) for real-time quote streaming.
+基于 Next.js 16 的 A 股看盘界面，数据来自 [vane-data-api](../vane-data-api/README.md)，实时行情通过 [ws-finance](./ws-finance/) 推送。既是一个开箱即用的看盘工具，也可以作为调用 vane-data-api 的参考实现。
 
-Designed as both a ready-to-use dashboard and a reference implementation showing how to build applications on top of vane-data-api.
+## 功能
 
-## Features
+- K 线图 + 技术指标（MA、BOLL、MACD、RSI、KDJ）
+- 实时行情卡片（Socket.IO 推送）
+- 行业 / 概念板块热力图
+- 涨跌停池追踪
+- 个股详情面板（PE、PB、市值、52 周数据）
+- 资金流向图（主力 vs 散户）
+- 财经新闻流
+- 自选股列表，支持拖拽排序（存 localStorage）
+- 大盘指数面板
+- 深色 / 浅色主题切换
+- K 线全屏模式
 
-- K-line chart with technical indicators (MA, BOLL, MACD, RSI, KDJ)
-- Real-time quote cards via Socket.IO
-- Industry / concept sector heatmap
-- Limit-up / limit-down (涨跌停) pool tracker
-- Stock detail panel with PE, PB, market cap, 52-week metrics
-- Capital flow chart (main force vs retail)
-- Financial news feed
-- Custom watchlist with drag-and-drop reordering (persisted in localStorage)
-- Market index panel
-- Dark / light theme toggle
-- Fullscreen K-line mode
+## 环境要求
 
-## Requirements
+- Bun >= 1.0 或 Node.js >= 18
+- vane-data-api 运行在 8000 端口
+- ws-finance 运行在 3003 端口（可选，不启动则没有实时推送）
 
-- Bun >= 1.0 or Node.js >= 18
-- vane-data-api running on port 8000
-- (Optional) ws-finance running on port 3003 for real-time streaming
-
-## Quick Start
+## 快速开始
 
 ```bash
 cd vane-data-web
 
-# Install dependencies
+# 安装依赖
 bun install
 
-# Start development server (port 3000)
+# 启动开发服务器（端口 3000）
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+打开 [http://localhost:3000](http://localhost:3000)。
 
-## Environment Variables
+## 环境变量
 
-Copy `.env.example` to `.env.local`:
+复制 `.env.example` 为 `.env.local`：
 
 ```bash
 cp .env.example .env.local
 ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VANE_API_URL` | `http://localhost:8000` | vane-data-api base URL (server-side, runtime-configurable) |
-| `NEXT_PUBLIC_WS_URL` | `http://localhost:3003` | ws-finance Socket.IO URL (client-side, must be set at build time) |
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `VANE_API_URL` | `http://localhost:8000` | vane-data-api 地址（服务端变量，容器启动时可覆盖，无需重新构建） |
+| `NEXT_PUBLIC_WS_URL` | `http://localhost:3003` | ws-finance Socket.IO 地址（客户端变量，构建时确定） |
 
-The frontend proxies all `/api/finance/*` requests to the backend via Next.js rewrites in `next.config.ts`. `VANE_API_URL` is a server-only variable so it can be changed at container startup without rebuilding the image.
+前端通过 Next.js rewrites 把 `/api/finance/*` 代理到后端，这样客户端不会直接跨域请求 API。
 
-## Scripts
+## 命令
 
-| Command | Description |
-|---------|-------------|
-| `bun run dev` | Start Next.js dev server (port 3000) |
-| `bun run build` | Build for production (outputs standalone) |
-| `bun run start` | Start production server |
-| `bun run lint` | Run ESLint |
-| `bun run ws:dev` | Start ws-finance in dev mode |
-| `bun run ws:start` | Start ws-finance in production mode |
+| 命令 | 说明 |
+|------|------|
+| `bun run dev` | 启动开发服务器（端口 3000） |
+| `bun run build` | 构建生产包（standalone 模式） |
+| `bun run start` | 启动生产服务器 |
+| `bun run lint` | 运行 ESLint |
+| `bun run ws:dev` | 启动 ws-finance 开发模式 |
+| `bun run ws:start` | 启动 ws-finance 生产模式 |
 
-## Production Build
+## 生产构建
 
 ```bash
 bun run build
 bun run start
 ```
 
-The build uses `output: "standalone"` — the `.next/standalone` directory contains everything needed to run the server without `node_modules`.
+使用 `output: "standalone"` 构建，`.next/standalone` 目录包含运行所需的全部文件，不依赖 `node_modules`。
 
 ### Docker
 
@@ -83,94 +81,92 @@ docker run -p 3000:3000 \
   vane-web
 ```
 
-## Project Structure
+## 项目结构
 
 ```
 vane-data-web/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx            # Main dashboard
-│   │   ├── layout.tsx          # Root layout (theme provider, fonts)
+│   │   ├── page.tsx            # 主页面（看盘界面）
+│   │   ├── layout.tsx          # 根布局（主题、字体）
 │   │   └── globals.css
 │   ├── components/
-│   │   ├── finance/            # Domain components
-│   │   │   ├── kline-chart.tsx         # Candlestick chart + indicators
-│   │   │   ├── quote-cards.tsx         # Real-time quote cards
-│   │   │   ├── market-heatmap.tsx      # Sector heatmap
-│   │   │   ├── sector-panel.tsx        # Sector list + stocks
-│   │   │   ├── stock-detail-panel.tsx  # Stock fundamentals + capital flow
-│   │   │   ├── limit-pool.tsx          # Limit-up/down tracker
-│   │   │   ├── news-panel.tsx          # Financial news
-│   │   │   ├── market-index.tsx        # Market index panel
-│   │   │   ├── watchlist.tsx           # Watchlist with drag-and-drop
-│   │   │   └── stock-search.tsx        # Symbol search
-│   │   ├── theme-provider.tsx  # next-themes wrapper
-│   │   └── ui/                 # shadcn/ui component library
+│   │   ├── finance/            # 业务组件
+│   │   │   ├── kline-chart.tsx         # K 线图 + 技术指标
+│   │   │   ├── quote-cards.tsx         # 实时行情卡片
+│   │   │   ├── market-heatmap.tsx      # 板块热力图
+│   │   │   ├── sector-panel.tsx        # 板块列表 + 成分股
+│   │   │   ├── stock-detail-panel.tsx  # 个股详情 + 资金流向
+│   │   │   ├── limit-pool.tsx          # 涨跌停追踪
+│   │   │   ├── news-panel.tsx          # 财经新闻
+│   │   │   ├── market-index.tsx        # 大盘指数
+│   │   │   ├── watchlist.tsx           # 自选股（拖拽排序）
+│   │   │   └── stock-search.tsx        # 股票搜索
+│   │   ├── theme-provider.tsx  # next-themes 封装
+│   │   └── ui/                 # shadcn/ui 组件库
 │   ├── lib/
-│   │   ├── finance-api.ts      # Shared HTTP utilities for upstream APIs
-│   │   ├── watchlist-storage.ts # localStorage persistence for watchlist
-│   │   └── utils.ts            # cn() and other helpers
+│   │   ├── finance-api.ts      # 上游 API 的 HTTP 工具
+│   │   ├── watchlist-storage.ts # 自选股 localStorage 持久化
+│   │   └── utils.ts            # cn() 等工具函数
 │   └── hooks/
 │       ├── use-mobile.ts
 │       └── use-toast.ts
-├── ws-finance/                 # Socket.IO WebSocket server (port 3003)
+├── ws-finance/                 # Socket.IO WebSocket 服务（端口 3003）
 │   ├── index.ts
 │   ├── package.json
 │   └── Dockerfile
 ├── public/
-├── next.config.ts              # API proxy rewrites, standalone output
+├── next.config.ts              # API 代理 rewrites，standalone 构建
 ├── tailwind.config.ts
-├── components.json             # shadcn/ui config
+├── components.json             # shadcn/ui 配置
 ├── Dockerfile
 └── .env.example
 ```
 
-## API Proxy
+## API 代理
 
-All data requests from the frontend are proxied through Next.js rewrites to avoid CORS issues:
+前端所有数据请求都通过 Next.js rewrites 代理到后端，避免跨域问题：
 
 ```
-Browser → /api/finance/quote → Next.js rewrite → http://localhost:8000/api/quote
+浏览器 → /api/finance/quote → Next.js rewrite → http://localhost:8000/api/quote
 ```
 
-This is configured in `next.config.ts`:
+配置在 `next.config.ts`：
 
 ```ts
 rewrites: [{ source: "/api/finance/:path*", destination: `${apiUrl}/api/:path*` }]
 ```
 
-## ws-finance — WebSocket Service
+## ws-finance
 
-The `ws-finance` directory contains a standalone Socket.IO server that streams real-time stock quotes. It polls Tencent Finance every 3 seconds and pushes updates to subscribed clients.
-
-See [ws-finance/README.md](./ws-finance/README.md) for details.
-
-### Starting ws-finance
+`ws-finance` 是一个独立的 Socket.IO 服务，每 3 秒轮询腾讯财经并向订阅的客户端推送行情更新。
 
 ```bash
-# From vane-data-web directory
+# 在 vane-data-web 目录下启动
 bun run ws:dev
 
-# Or directly
+# 或者直接进目录
 cd ws-finance
 bun run dev
 ```
 
-## Tech Stack
+详细说明见 [ws-finance/README.md](./ws-finance/README.md)。
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5 |
-| Styling | Tailwind CSS 4 + shadcn/ui |
-| Charts | Recharts |
-| State | Zustand |
-| Data fetching | TanStack React Query |
-| Real-time | Socket.IO client |
-| UI primitives | Radix UI |
-| Drag & drop | @dnd-kit |
-| Motion | Framer Motion |
-| Runtime | Bun / Node.js |
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 框架 | Next.js 16（App Router） |
+| 语言 | TypeScript 5 |
+| 样式 | Tailwind CSS 4 + shadcn/ui |
+| 图表 | Recharts |
+| 状态管理 | Zustand |
+| 数据请求 | TanStack React Query |
+| 实时通信 | Socket.IO client |
+| UI 基础组件 | Radix UI |
+| 拖拽 | @dnd-kit |
+| 动画 | Framer Motion |
+| 运行时 | Bun / Node.js |
 
 ## License
 
