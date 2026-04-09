@@ -1,6 +1,6 @@
 # vane-data-web
 
-基于 Next.js 16 的 A 股看盘界面，数据来自 [vane-data-api](../vane-data-api/README.md)，实时行情通过 [ws-finance](./ws-finance/) 推送。既是一个开箱即用的看盘工具，也可以作为调用 vane-data-api 的参考实现。
+基于 Next.js 16 的 A 股看盘界面，数据来自 [vane-data-api](./vane-data-api.md)，实时行情通过 [ws-finance](./ws-finance.md) 推送。既是一个开箱即用的看盘工具，也可以作为调用 vane-data-api 的参考实现。
 
 ## 功能
 
@@ -150,7 +150,7 @@ cd ws-finance
 bun run dev
 ```
 
-详细说明见 [ws-finance/README.md](./ws-finance/README.md)。
+详细说明见 [ws-finance 文档](./ws-finance.md)。
 
 ## 技术栈
 

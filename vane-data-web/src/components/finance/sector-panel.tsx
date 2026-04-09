@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -172,6 +172,14 @@ export default function SectorPanel({ onStockClick }: SectorPanelProps) {
   const [stocksData, setStocksData] = useState<SectorStocksData | null>(null)
   const [loadingStocks, setLoadingStocks] = useState(false)
   const [stocksPage, setStocksPage] = useState(1)
+  const stocksScrollRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to top when dialog page changes
+  useEffect(() => {
+    if (!dialogOpen) return
+    const viewport = stocksScrollRef.current?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement | null
+    if (viewport) viewport.scrollTop = 0
+  }, [stocksPage, dialogOpen])
 
   // ---------------------------------------------------------------------------
   // Fetch sectors (page-aware)
@@ -348,7 +356,7 @@ export default function SectorPanel({ onStockClick }: SectorPanelProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 min-h-0 custom-scrollbar -mx-2 px-2">
+          <ScrollArea ref={stocksScrollRef} className="flex-1 min-h-0 custom-scrollbar -mx-2 px-2">
             {loadingStocks ? (
               <div className="space-y-2 py-2">
                 {Array.from({ length: STOCK_PAGE_SIZE }).map((_, i) => (

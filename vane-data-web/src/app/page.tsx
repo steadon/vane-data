@@ -14,7 +14,6 @@ import SectorPanel from '@/components/finance/sector-panel'
 import FinanceNews from '@/components/finance/news-panel'
 import MarketIndexPanel from '@/components/finance/market-index'
 import Watchlist from '@/components/finance/watchlist'
-import StockDetailPanel from '@/components/finance/stock-detail-panel'
 import MarketHeatmap from '@/components/finance/market-heatmap'
 import ScrollToTop from '@/components/finance/scroll-to-top'
 
@@ -242,13 +241,6 @@ export default function Home() {
                 isFullscreen={isFullscreen}
               />
             </div>
-
-            {/* Stock Detail */}
-            {!isFullscreen && (
-              <div className="animate-slide-up card-hover-lift" style={{ animationDelay: '0.3s' }}>
-                <StockDetailPanel symbol={symbol} />
-              </div>
-            )}
 
             {/* Sector Analysis (same width as K-line) */}
             {!isFullscreen && (

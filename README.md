@@ -12,6 +12,12 @@
 
 后端内置内存 LRU+TTL 缓存，交易时段自动缩短 TTL 保证实时性，盘后延长降低上游压力；多个数据源自动兜底切换，内置反爬容错机制。
 
+## 演示
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+  <img src="docs/images/screenshot-1.png" alt="描述1" style="width: 45%; max-width: 400px;">
+  <img src="docs/images/screenshot-2.png" alt="描述2" style="width: 45%; max-width: 400px;">
+</div>
+
 ## 项目结构
 
 ```
@@ -19,6 +25,7 @@ vane-data/
 ├── vane-data-api/        # Python + FastAPI — 数据聚合后端（端口 8000）
 ├── vane-data-web/        # Next.js 16 — 可视化看盘界面（端口 3000）
 │   └── ws-finance/       # Socket.IO — 实时行情推送（端口 3003）
+├── docs/                 # 项目文档
 ├── docker-compose.yml    # 一键全栈部署
 └── start-all.sh          # 本地开发一键启动
 ```
@@ -29,7 +36,8 @@ vane-data/
 |------|--------|
 | 实时行情 | 腾讯财经（主）/ 新浪财经（备） |
 | K 线数据 | 腾讯财经 |
-| 个股详情、板块、资金流向、新闻 | 东方财富 |
+| 个股详情、板块、资金流向 | 东方财富 |
+| 财经新闻 | 东方财富（主）/ 新浪财经（备） |
 | 涨跌停池 | 东方财富（主）/ 新浪财经（备） |
 
 ## 快速开始
@@ -87,7 +95,7 @@ python main.py
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
-详细说明见 [vane-data-api/README.md](./vane-data-api/README.md)。
+详细说明见 [vane-data-api 文档](./docs/vane-data-api.md)。
 
 ### 只部署前端
 
@@ -97,7 +105,7 @@ bun run build
 bun run start
 ```
 
-用环境变量 `VANE_API_URL` 指向实际部署的 API 地址。详细说明见 [vane-data-web/README.md](./vane-data-web/README.md)。
+用环境变量 `VANE_API_URL` 指向实际部署的 API 地址。详细说明见 [vane-data-web 文档](./docs/vane-data-web.md)。
 
 ### Nginx 反向代理
 
@@ -144,7 +152,7 @@ server {
 | `GET /api/news` | 财经新闻（支持分页） |
 | `WS /ws/quotes` | WebSocket 实时行情推送 |
 
-完整接口文档：[vane-data-api/README.md](./vane-data-api/README.md)
+完整接口文档：[vane-data-api 文档](./docs/vane-data-api.md)
 在线 Swagger（服务启动后）：http://localhost:8000/docs
 
 ## 常用股票代码

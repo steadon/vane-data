@@ -100,6 +100,7 @@ export default function FinanceNews() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [newsSource, setNewsSource] = useState<string>('')
 
   const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (append) {
@@ -113,9 +114,10 @@ export default function FinanceNews() {
       const res = await fetch(`/api/finance/news?page=${pageNum}&page_size=${PAGE_SIZE}`)
       const json = await res.json()
       if (json.code === 200 && json.data) {
-        const { news, page_count } = json.data as { news: NewsItem[]; page_count: number }
+        const { news, page_count, source } = json.data as { news: NewsItem[]; page_count: number; source?: string }
         setPageCount(page_count)
         setPage(pageNum)
+        if (source) setNewsSource(source)
         if (append) {
           // Deduplicate by id in case of overlap
           setAllNews((prev) => {
@@ -154,7 +156,7 @@ export default function FinanceNews() {
           </CardTitle>
           {allNews.length > 0 && (
             <Badge variant="outline" className="text-[11px] text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700">
-              东方财富
+              {newsSource === 'sina' ? '新浪财经' : '东方财富'}
             </Badge>
           )}
         </div>
